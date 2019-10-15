@@ -22,9 +22,9 @@ def tqdm(*args, **kwargs):
 
 ## The Q network
 class QNetwork(nn.Module):
-    def __init__(self, num_hidden=128):
+    def __init__(self, num_hidden=256):
         nn.Module.__init__(self)
-        self.l1 = nn.Linear(4, num_hidden)
+        self.l1 = nn.Linear(6, num_hidden) # CartPole 4, car 2
         self.l2 = nn.Linear(num_hidden, 2)
 
 
@@ -60,17 +60,17 @@ class ReplayMemory:
 
 # THIS IS VERY IMPORTANT
 def get_epsilon(it):
-    if it < 2000:
-        return 1 - 0.95 * it / 2000
+    if it < 40000:
+        return 1 - 0.99 * it / 40000
     else:
-        return 0.02
+        return 0.01
 
 
 def get_epsilon2(it):
-    if it < 2000:
-        return 1 - 0.95 * it / 2000
+    if it < 40000:
+        return 1 - 0.99 * it / 40000
     else:
-        return 0.02
+        return 0.01
 
 
 def select_action(model, state, epsilon):
@@ -135,6 +135,7 @@ def run_episodes(train, model, memory, env, num_episodes, batch_size, discount_f
     episode_durations = []  #
     for i in range(num_episodes):
         episode = 0
+        tot_r = 0
         s = env.reset()
         while True:
             eps = get_epsilon(global_steps)
@@ -142,7 +143,6 @@ def run_episodes(train, model, memory, env, num_episodes, batch_size, discount_f
 
             next_state, reward, done, _ = env.step(action)
             episode += 1
-
             memory.push((s, action, reward, next_state, done))
 
             train(model, memory, optimizer, batch_size, discount_factor)
@@ -305,18 +305,18 @@ def error(data):
 
 if __name__ == '__main__':
     # Params.
-    memory = ReplayMemory(10000)
-    env = gym.envs.make("CartPole-v0")
-    num_episodes = 150
-    batch_size = 64
-    discount_factor = 0.8
-    learn_rate = 1e-3
+    memory = ReplayMemory(200000)
+    env = gym.envs.make("Acrobot-v1") #CartPole-v0
+    num_episodes = 200
+    batch_size = 256
+    discount_factor = 0.99
+    learn_rate = 0.0001
     num_hidden = 128
 
     params = (memory, env, num_episodes, batch_size, discount_factor, learn_rate, num_hidden)
 
     # Seed management
-    nr_runs = 3
+    nr_runs = 10
     seed = 42
     seeds = gen_seeds(seed, nr_runs)
 
@@ -333,22 +333,23 @@ if __name__ == '__main__':
     returns_double = np.asarray(returns_double)
     avg_double, std_double = error(returns_double)
 
-    #plt.plot(avg_single, color='b', label='Single Q')
-    #plt.fill_between(list(range(len(avg_single))), avg_single-std_single, avg_single+std_single, alpha=0.5)
-    #plt.plot(avg_double, color='r', label='Double Q')
-    #plt.fill_between(list(range(len(avg_double))), avg_double-std_double, avg_double+std_double, alpha=0.5)
-    #plt.legend()
-    #plt.xlabel("Episode (#)")
-    #plt.ylabel("Episode Length")
-    #plt.title("Deep Single Q vs Deep Double Q on the CartPole problem")
-    #plt.show()
 
-    for episode_durations in returns_single:
-        plt.plot(smooth(episode_durations, 10),color='b', label='DQN')
-    for episode_durations_double in returns_double:
-        plt.plot(smooth(episode_durations_double, 10),color='r', label='Double DQN')
+    plt.plot(avg_single, color='b', label='DQN')
+    plt.fill_between(list(range(len(avg_single))), avg_single-std_single, avg_single+std_single, alpha=0.5)
+    plt.plot(avg_double, color='r', label='DDQN')
+    plt.fill_between(list(range(len(avg_double))), avg_double-std_double, avg_double+std_double, alpha=0.5)
     plt.legend()
     plt.xlabel("Episode (#)")
     plt.ylabel("Episode Length")
-    plt.title("Deep Single Q vs Deep Double Q on the CartPole problem")
+    plt.title("Deep Single Q vs Deep Double Q on the Acrobot problem")
     plt.show()
+
+    # for episode_durations in returns_single:
+    #     plt.plot(smooth(episode_durations, 10),color='b', label='DQN')
+    # for episode_durations_double in returns_double:
+    #     plt.plot(smooth(episode_durations_double, 10),color='r', label='Double DQN')
+    # plt.legend()
+    # plt.xlabel("Episode (#)")
+    # plt.ylabel("Episode Length")
+    # plt.title("Deep Single Q vs Deep Double Q on the CartPole problem")
+    # plt.show()
